@@ -1,0 +1,91 @@
+/* GH Switcher — Português (Brasil) */
+
+/* Painel */
+"Quit GH Switcher" = "Sair do GH Switcher";
+"No active account" = "Nenhuma conta ativa";
+"Active account" = "Conta ativa";
+"Refresh" = "Atualizar";
+"Copy active login" = "Copiar login ativo";
+"Open profile on GitHub" = "Abrir perfil no GitHub";
+"Settings…" = "Ajustes…";
+"Switch to %@" = "Ativar %@";
+"Switching…" = "Ativando…";
+"Session expired. Sign in again in Settings" = "Sessão expirada. Entre de novo nos Ajustes";
+"Active · %@" = "Ativa · %@";
+"Install GitHub CLI" = "Instalar GitHub CLI";
+"Add account" = "Adicionar conta";
+"Required to switch accounts" = "Necessário para trocar de conta";
+"No accounts in GitHub CLI yet" = "Nenhuma conta no GitHub CLI ainda";
+"no active account" = "nenhuma conta ativa";
+
+/* Mensagens */
+"GitHub CLI (gh) not found" = "GitHub CLI (gh) não encontrado";
+"Unexpected output from gh" = "Saída inesperada do gh";
+"Homebrew not found" = "Homebrew não encontrado";
+"gh command failed (exit code %lld)" = "Comando gh falhou (código %lld)";
+"Invalid session: %@" = "Sessão inválida: %@";
+"Active GitHub account: %@" = "Conta GitHub ativa: %@";
+"Couldn't switch account: %@" = "Não foi possível trocar de conta: %@";
+"Signed out of %@" = "Saiu da conta %@";
+"Open at Login: %@" = "Abrir no login: %@";
+"Sign-in failed (exit code %lld)" = "Não foi possível entrar (código %lld)";
+
+/* Ajustes */
+"GH Switcher Settings" = "Ajustes do GH Switcher";
+"Accounts" = "Contas";
+"General" = "Geral";
+"About" = "Sobre";
+"No accounts in GitHub CLI yet." = "Nenhuma conta no GitHub CLI ainda.";
+"Sign in through your browser with GitHub CLI. The token stays in the Keychain; this app never reads it." = "Entra pelo navegador com o GitHub CLI. O token fica no Keychain e o app nunca o lê.";
+"Add…" = "Adicionar…";
+"Sign out of %@?" = "Sair da conta %@?";
+"Sign Out" = "Sair";
+"Cancel" = "Cancelar";
+"GitHub CLI will remove the credentials for %@ on %@. You can sign in again later." = "O GitHub CLI vai remover as credenciais de %1$@ em %2$@. Você pode entrar de novo depois.";
+"Active" = "Ativa";
+"Switch" = "Ativar";
+"Sign Out…" = "Sair…";
+"Session expired. Sign out and add the account again." = "Sessão expirada. Saia e adicione a conta de novo.";
+"unknown" = "desconhecido";
+"Credentials: %@" = "Credencial: %@";
+"Sign in through your browser with GitHub CLI" = "Login pelo navegador com o GitHub CLI";
+"Continue" = "Continuar";
+"Done" = "Concluir";
+"Server" = "Servidor";
+"Use github.com or your GitHub Enterprise address." = "Use github.com ou o endereço do seu GitHub Enterprise.";
+"Starting GitHub CLI…" = "Iniciando o GitHub CLI…";
+"Copy the code and authorize in your browser:" = "Copie o código e autorize no navegador:";
+"Copy Code and Open GitHub" = "Copiar código e abrir o GitHub";
+"Waiting for authorization…" = "Aguardando a autorização…";
+"Account added and activated." = "Conta adicionada e ativada.";
+"Open at Login" = "Abrir no login";
+"Start GH Switcher when you log in to your Mac." = "Inicia o GH Switcher quando você entra no Mac.";
+"Notify when switching accounts" = "Notificar ao trocar de conta";
+"Menu Bar" = "Barra de menus";
+"Show login next to the icon" = "Mostrar login ao lado do ícone";
+"Panel glass" = "Vidro do painel";
+"Clear matches Control Center. Regular is more opaque." = "Transparente segue a Central de Controle. Padrão é mais opaco.";
+"Clear" = "Transparente";
+"Regular" = "Padrão";
+"Automatic" = "Automático";
+"Detect" = "Detectar";
+"gh path" = "Caminho do gh";
+"Leave empty to detect automatically." = "Deixe vazio para detectar automaticamente.";
+"Version %@" = "Versão %@";
+"Environment" = "Ambiente";
+"not found" = "não encontrado";
+"Links" = "Links";
+"Source code on GitHub" = "Código-fonte no GitHub";
+"Sponsor GH Switcher" = "Patrocinar o GH Switcher";
+"Report an issue" = "Relatar um problema";
+"Security" = "Segurança";
+"This app never reads, stores or displays tokens. Credentials stay with GitHub CLI in the macOS Keychain." = "O app nunca lê, grava ou exibe tokens. As credenciais ficam com o GitHub CLI, no Keychain do macOS.";
+"Licensed under FSL-1.1-MIT. Not affiliated with GitHub, Inc." = "Licenciado sob FSL-1.1-MIT. Sem afiliação com o GitHub, Inc.";
+
+/* Boas-vindas */
+"Welcome to GH Switcher" = "Bem-vindo ao GH Switcher";
+"GH Switcher uses the GitHub CLI (gh) to switch accounts. Install it to get started." = "O GH Switcher usa o GitHub CLI (gh) para trocar de conta. Instale-o para começar.";
+"Install with Homebrew" = "Instalar com Homebrew";
+"Installing…" = "Instalando…";
+"Download GitHub CLI" = "Baixar o GitHub CLI";
+"Check Again" = "Verificar novamente";

@@ -1,47 +1,86 @@
 # GH Switcher
 
-App de barra de menus do macOS para trocar a conta ativa do GitHub CLI (`gh`) com um clique.
+**Switch your GitHub CLI account from the macOS menu bar, with one click.**
 
-- Lista as contas de `gh auth status --json hosts` e troca com `gh auth switch`.
-- **Nunca** lê, grava ou exibe tokens: as credenciais ficam com o `gh` (Keychain).
-- Painel no estilo da Central de Controle, sem ícone no Dock.
-- Atualiza ao abrir o painel e a cada 60 segundos (mostra trocas feitas pelo terminal).
+GH Switcher is a native menu bar app for people who juggle more than one GitHub account
+(personal and work, for example) in the [GitHub CLI](https://cli.github.com). It lists the
+accounts known to `gh` and runs `gh auth switch` for you, in a panel that looks and feels
+like macOS Control Center.
 
-## Requisitos
-- macOS 13+
-- [GitHub CLI](https://cli.github.com) com uma ou mais contas autenticadas
+🇧🇷 [Leia em português](README.pt-BR.md)
 
-## Build
+<!-- docs/panel.png and docs/demo.gif are added before the first release -->
+
+## Features
+
+- **One-click switching** of the active `gh` account, per host (github.com and GitHub Enterprise).
+- **Liquid Glass panel** in the style of Control Center; no Dock icon.
+- **Stays in sync** with the terminal: refreshes when opened and every 60 seconds.
+- **Add and remove accounts** without the terminal: browser sign-in with a one-time code.
+- **Optional login in the menu bar**, notifications, Open at Login.
+- **English and Portuguese (Brazil).**
+
+## Install
+
 ```bash
-swift build
-swift test
-scripts/bundle.sh   # gera build/GHSwitcher.app (assinatura ad-hoc)
+brew install --cask willianrattis/tap/gh-switcher
 ```
 
-## Instalação
-```bash
-cp -R build/GHSwitcher.app /Applications/
-```
-Na primeira execução, clique com o botão direito no app > **Abrir**, porque a assinatura é ad-hoc.
+Homebrew also installs the GitHub CLI if you don't have it. Then open **GH Switcher** and,
+if needed, click **Add account**.
 
-"Iniciar ao fazer login" usa `SMAppService` e deve ser ativado com o app já em `/Applications`.
+Prefer a download? Get the `.dmg` from the
+[latest release](https://github.com/willianrattis/gh-switcher/releases/latest) and drag the
+app to Applications. Releases are signed with a Developer ID and notarized by Apple.
 
-## Caminho do gh
-O app procura o `gh` nesta ordem: `UserDefaults` (`ghPath`), `/opt/homebrew/bin/gh`,
-`/usr/local/bin/gh` e `zsh -lc 'command -v gh'`. Para forçar um caminho:
-```bash
-defaults write com.willianrattis.ghswitcher ghPath /caminho/para/gh
-```
+**Requirements:** macOS 13 or later (Liquid Glass on macOS 26+), Apple silicon or Intel.
 
-## Identidade de commit por pasta (recomendado)
-Trocar a conta do `gh` não muda `user.name`/`user.email` do git. Use `includeIf` no `~/.gitconfig`:
+## Security and privacy
+
+- GH Switcher **never reads, stores or displays tokens**. Credentials stay with the GitHub
+  CLI, in the macOS Keychain.
+- It only runs `gh auth status --json hosts`, `gh auth switch`, `gh auth login --web` and
+  `gh auth logout`, the last two only when you ask. The `token` field returned by
+  `gh auth status` is never decoded.
+- During sign-in, the only thing taken from `gh`'s output is the one-time device code.
+  Nothing is logged.
+- No analytics, no telemetry, no network calls besides GitHub avatars and what `gh` itself does.
+
+See [SECURITY.md](SECURITY.md) to report a vulnerability.
+
+## Usage tips
+
+**Commit identity per folder.** Switching the `gh` account does not change git's
+`user.name`/`user.email`. Use `includeIf` in `~/.gitconfig`:
+
 ```ini
-[includeIf "gitdir:~/Development/git/casas-bahia/"]
-    path = ~/.gitconfig-gcb
+[includeIf "gitdir:~/work/"]
+    path = ~/.gitconfig-work
 ```
-E em `~/.gitconfig-gcb`:
-```ini
-[user]
-    name = Seu Nome
-    email = voce@empresa.com
+
+**Custom gh location.** GH Switcher looks for `gh` in Settings, `/opt/homebrew/bin`,
+`/usr/local/bin` and your login shell's `PATH`.
+
+## Build from source
+
+```bash
+swift build && swift test
+scripts/bundle.sh          # build/GHSwitcher.app (debug, ad-hoc signed)
+open build/GHSwitcher.app
 ```
+
+`scripts/release.sh` builds the universal, signed and notarized release (maintainers only).
+
+## License
+
+[FSL-1.1-MIT](LICENSE.md) (Functional Source License). In short: you can use, study, modify
+and share GH Switcher for any purpose **except** offering a competing commercial product.
+**Each release automatically becomes MIT two years after it's published.**
+
+GH Switcher is not affiliated with or endorsed by GitHub, Inc. GitHub and the GitHub logo
+are trademarks of GitHub, Inc.
+
+## Support
+
+If GH Switcher saves you time, consider
+[sponsoring the project](https://github.com/sponsors/willianrattis). ❤️

@@ -2,5 +2,17 @@
 build/
 .swiftpm/
 .DS_Store
+
+# Material de trabalho local (não versionar)
 gh-switcher-plano.md
 *.png
+!docs/**/*.png
+!docs/**/*.gif
+
+# Credenciais e dados da Apple: nunca versionar
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+apple-*.md

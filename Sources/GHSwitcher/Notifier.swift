@@ -11,7 +11,8 @@ enum Notifier {
     }
 
     static func send(_ body: String) {
-        guard available else { return }
+        guard available,
+              UserDefaults.standard.object(forKey: "notificationsEnabled") as? Bool ?? true else { return }
         let content = UNMutableNotificationContent()
         content.title = "GH Switcher"
         content.body = body

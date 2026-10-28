@@ -1,0 +1,24 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build
+      - name: Test
+        run: swift test
+      - name: No tokens in the repository
+        run: |
+          if grep -rIE "gh[opusr]_[A-Za-z0-9]{20,}" --exclude-dir=.build --exclude-dir=.git .; then
+            echo "::error::Possible GitHub token found"; exit 1
+          fi
