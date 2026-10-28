@@ -21,8 +21,11 @@ struct PanelView: View {
     var body: some View {
         GlassGroup(spacing: Grid.gap) {
             VStack(spacing: 0) {
-                header
-                    .padding(.bottom, 12)
+                if !settings.showLoginInMenuBar {
+                    header
+                        .padding(.bottom, 12)
+                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                }
 
                 VStack(spacing: Grid.gap) {
                     ForEach(store.accountsByHost, id: \.host) { group in
@@ -61,23 +64,24 @@ struct PanelView: View {
         .environment(\.glassStyle, settings.glassStyle)
         .animation(Motion.snappy, value: store.accounts)
         .animation(Motion.snappy, value: store.errorMessage)
+        .animation(Motion.snappy, value: settings.showLoginInMenuBar)
         .scaleEffect(presentation.isShown ? 1 : 0.94, anchor: .top)
         .opacity(presentation.isShown ? 1 : 0)
     }
 
     private var header: some View {
-        HStack(spacing: 6) {
-            Image(nsImage: GitHubMark.image(size: 13))
+        HStack(spacing: 7) {
+            Image(nsImage: GitHubMark.image(size: 14))
                 .renderingMode(.template)
             Text(store.activeAccount?.login ?? "Nenhuma conta ativa")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .contentTransition(.opacity)
         }
         .foregroundStyle(.primary)
-        .padding(.horizontal, 12)
-        .frame(height: 24)
+        .padding(.horizontal, 16)
+        .frame(width: Grid.width, height: 32)
         .glassSurface(Capsule())
         .help("Conta ativa")
     }
@@ -174,7 +178,7 @@ private struct AccountTile: View {
                         .truncationMode(.middle)
                     Text(subtitle)
                         .font(.system(size: 11))
-                        .foregroundStyle(account.active ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .contentTransition(.opacity)
                 }
@@ -189,9 +193,8 @@ private struct AccountTile: View {
             .contentShape(shape)
         }
         .buttonStyle(PressableStyle())
-        .glassSurface(shape, interactive: !account.active,
-                      tint: account.active ? Color.accentColor.opacity(0.16) : nil)
-        .overlay(shape.strokeBorder(Color.accentColor.opacity(account.active ? 0.55 : 0), lineWidth: 1))
+        .glassSurface(shape, interactive: !account.active)
+        .overlay(shape.strokeBorder(Color.accentColor.opacity(account.active ? 0.6 : 0), lineWidth: 1))
         .brightness(hovering && !account.active ? 0.04 : 0)
         .onHover { hovering = $0 }
         .help(account.active ? "Conta ativa" : "Ativar \(account.login)")
