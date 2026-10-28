@@ -1,21 +1,22 @@
+import AppKit
 import SwiftUI
 
 @main
 struct GHSwitcherApp: App {
-    @StateObject private var store = AccountStore()
-    @StateObject private var loginItem = LoginItem()
-
-    init() {
-        Notifier.requestAuthorization()
-    }
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        MenuBarExtra {
-            PanelView(store: store, loginItem: loginItem)
-        } label: {
-            Image(systemName: "person.crop.circle")
-                .accessibilityLabel("GH Switcher: \(store.activeAccount?.login ?? "sem conta")")
-        }
-        .menuBarExtraStyle(.window)
+        Settings { EmptyView() }
+    }
+}
+
+@MainActor
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    private var controller: StatusItemController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+        Notifier.requestAuthorization()
+        controller = StatusItemController(store: AccountStore(), loginItem: LoginItem())
     }
 }

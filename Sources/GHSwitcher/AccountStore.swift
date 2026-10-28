@@ -24,6 +24,20 @@ final class AccountStore: ObservableObject {
         }
     }
 
+    @Published private(set) var isRefreshing = false
+    @Published private(set) var switchingID: String?
+
+    /// Atualização pedida pelo usuário: mantém o indicador visível por um tempo mínimo.
+    func userRefresh() async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        let start = Date()
+        await refresh()
+        let remaining = 0.6 - Date().timeIntervalSince(start)
+        if remaining > 0 { try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000)) }
+        isRefreshing = false
+    }
+
     func refresh() async {
         do {
             accounts = try await GHCLI.listAccounts()
@@ -38,7 +52,11 @@ final class AccountStore: ObservableObject {
     func switchTo(_ account: GHAccount) async {
         guard !account.active, !isBusy else { return }
         isBusy = true
-        defer { isBusy = false }
+        switchingID = account.id
+        defer {
+            isBusy = false
+            switchingID = nil
+        }
         do {
             try await GHCLI.switchAccount(host: account.host, login: account.login)
             await refresh()
