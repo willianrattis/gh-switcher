@@ -6,6 +6,14 @@ final class AccountStore: ObservableObject {
     @Published private(set) var accounts: [GHAccount] = []
     @Published private(set) var errorMessage: String?
     @Published private(set) var isBusy = false
+    @Published private(set) var isRefreshing = false
+    @Published private(set) var switchingID: String?
+    /// O gh não foi encontrado na última atualização.
+    @Published private(set) var ghMissing = false
+    /// Já houve pelo menos uma atualização (evita mostrar boas-vindas antes da hora).
+    @Published private(set) var hasLoaded = false
+    @Published private(set) var isInstallingGH = false
+    @Published private(set) var installError: String?
 
     private var timer: Timer?
 
@@ -17,15 +25,15 @@ final class AccountStore: ObservableObject {
             .sorted { $0.host < $1.host }
     }
 
+    /// Precisa de configuração: sem gh ou sem nenhuma conta.
+    var needsOnboarding: Bool { hasLoaded && (ghMissing || accounts.isEmpty) }
+
     init() {
         Task { await refresh() }
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh() }
         }
     }
-
-    @Published private(set) var isRefreshing = false
-    @Published private(set) var switchingID: String?
 
     /// Atualização pedida pelo usuário: mantém o indicador visível por um tempo mínimo.
     func userRefresh() async {
@@ -39,13 +47,35 @@ final class AccountStore: ObservableObject {
     }
 
     func refresh() async {
+        defer { hasLoaded = true }
         do {
             accounts = try await GHCLI.listAccounts()
+            ghMissing = false
             let invalid = accounts.filter { !$0.isValid }.map(\.login)
-            errorMessage = invalid.isEmpty ? nil : "Conta inválida: " + invalid.joined(separator: ", ")
+            errorMessage = invalid.isEmpty
+                ? nil
+                : String(localized: "Invalid session: \(invalid.joined(separator: ", "))")
+        } catch GHError.notFound {
+            accounts = []
+            ghMissing = true
+            errorMessage = nil
         } catch {
             accounts = []
+            ghMissing = false
             errorMessage = error.localizedDescription
+        }
+    }
+
+    func installGH() async {
+        guard !isInstallingGH else { return }
+        isInstallingGH = true
+        installError = nil
+        defer { isInstallingGH = false }
+        do {
+            try await GHCLI.installWithBrew()
+            await refresh()
+        } catch {
+            installError = error.localizedDescription
         }
     }
 
@@ -60,10 +90,11 @@ final class AccountStore: ObservableObject {
         do {
             try await GHCLI.switchAccount(host: account.host, login: account.login)
             await refresh()
-            Notifier.send("Conta GitHub ativa: \(activeAccount?.login ?? account.login)")
+            let login = activeAccount?.login ?? account.login
+            Notifier.send(String(localized: "Active GitHub account: \(login)"))
         } catch {
             errorMessage = error.localizedDescription
-            Notifier.send("Erro ao trocar conta: \(error.localizedDescription)")
+            Notifier.send(String(localized: "Couldn't switch account: \(error.localizedDescription)"))
         }
     }
 
@@ -78,7 +109,7 @@ final class AccountStore: ObservableObject {
         do {
             try await GHCLI.logout(host: account.host, login: account.login)
             await refresh()
-            Notifier.send("Conta removida: \(account.login)")
+            Notifier.send(String(localized: "Signed out of \(account.login)"))
         } catch {
             errorMessage = error.localizedDescription
         }

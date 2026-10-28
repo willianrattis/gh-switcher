@@ -7,9 +7,9 @@ enum GHError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notFound: return "gh não encontrado"
+        case .notFound: return String(localized: "GitHub CLI (gh) not found")
         case .failed(let message): return message
-        case .invalidOutput: return "Saída inesperada do gh"
+        case .invalidOutput: return String(localized: "Unexpected output from gh")
         }
     }
 }
@@ -36,6 +36,19 @@ enum GHCLI {
             if fm.isExecutableFile(atPath: path) { return path }
         }
         return nil
+    }
+
+    /// Homebrew, usado para instalar o gh quando ele não existe.
+    static func locateBrew() -> String? {
+        ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"].first {
+            FileManager.default.isExecutableFile(atPath: $0)
+        }
+    }
+
+    static func installWithBrew() async throws {
+        guard let brew = locateBrew() else { throw GHError.failed(String(localized: "Homebrew not found")) }
+        let result = try await run(brew, ["install", "gh"])
+        if result.status != 0 { throw GHError.failed(message(from: result)) }
     }
 
     static func listAccounts() async throws -> [GHAccount] {
@@ -71,7 +84,7 @@ enum GHCLI {
     private static func message(from result: ProcessResult) -> String {
         let text = String(decoding: result.stderr, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
         let firstLine = text.split(separator: "\n").first.map(String.init) ?? ""
-        return firstLine.isEmpty ? "Comando gh falhou (código \(result.status))" : firstLine
+        return firstLine.isEmpty ? String(localized: "gh command failed (exit code \(Int(result.status)))") : firstLine
     }
 
     static func makeProcess(_ executable: String, _ arguments: [String]) -> Process {
@@ -99,8 +112,16 @@ enum GHCLI {
                 process.standardError = err
                 do {
                     try process.run()
+                    // Lê stderr em paralelo para o processo não travar com o buffer cheio.
+                    var errData = Data()
+                    let group = DispatchGroup()
+                    group.enter()
+                    DispatchQueue.global().async {
+                        errData = err.fileHandleForReading.readDataToEndOfFile()
+                        group.leave()
+                    }
                     let outData = out.fileHandleForReading.readDataToEndOfFile()
-                    let errData = err.fileHandleForReading.readDataToEndOfFile()
+                    group.wait()
                     process.waitUntilExit()
                     continuation.resume(returning: ProcessResult(status: process.terminationStatus, stdout: outData, stderr: errData))
                 } catch {

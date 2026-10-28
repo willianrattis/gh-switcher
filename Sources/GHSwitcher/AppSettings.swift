@@ -8,8 +8,8 @@ enum GlassStyle: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .clear: return "Transparente"
-        case .regular: return "Padrão"
+        case .clear: return String(localized: "Clear")
+        case .regular: return String(localized: "Regular")
         }
     }
 }

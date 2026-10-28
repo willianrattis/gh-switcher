@@ -8,9 +8,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .accounts: return "Contas"
-        case .general: return "Geral"
-        case .about: return "Sobre"
+        case .accounts: return String(localized: "Accounts")
+        case .general: return String(localized: "General")
+        case .about: return String(localized: "About")
         }
     }
 
@@ -93,9 +93,11 @@ private struct AccountsPane: View {
 
     var body: some View {
         Form {
-            if store.accounts.isEmpty {
+            if store.ghMissing {
+                InstallGHSection(store: store)
+            } else if store.accounts.isEmpty {
                 Section {
-                    Text(store.errorMessage ?? "Nenhuma conta no GitHub CLI.")
+                    Text(store.errorMessage ?? String(localized: "No accounts in GitHub CLI yet."))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -112,13 +114,13 @@ private struct AccountsPane: View {
             Section {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Adicionar conta")
-                        Text("Entra pelo navegador com o GitHub CLI. O token fica no Keychain e o app nunca o lê.")
+                        Text("Add account")
+                        Text("Sign in through your browser with GitHub CLI. The token stays in the Keychain; this app never reads it.")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                     Spacer()
-                    Button("Adicionar…") { addingAccount = true }
+                    Button("Add…") { addingAccount = true }
                 }
             }
         }
@@ -126,16 +128,16 @@ private struct AccountsPane: View {
         .sheet(isPresented: $addingAccount) {
             AddAccountSheet(store: store)
         }
-        .confirmationDialog("Sair da conta \(pendingLogout?.login ?? "")?",
+        .confirmationDialog(Text("Sign out of \(pendingLogout?.login ?? "")?"),
                             isPresented: Binding(get: { pendingLogout != nil },
                                                  set: { if !$0 { pendingLogout = nil } }),
                             presenting: pendingLogout) { account in
-            Button("Sair", role: .destructive) {
+            Button("Sign Out", role: .destructive) {
                 Task { await store.logout(account) }
             }
-            Button("Cancelar", role: .cancel) {}
+            Button("Cancel", role: .cancel) {}
         } message: { account in
-            Text("O GitHub CLI vai remover as credenciais de \(account.login) em \(account.host). Você pode entrar de novo depois.")
+            Text("GitHub CLI will remove the credentials for \(account.login) on \(account.host). You can sign in again later.")
         }
         .task { await store.refresh() }
     }
@@ -154,7 +156,7 @@ private struct AccountRow: View {
                 HStack(spacing: 6) {
                     Text(account.login).fontWeight(.medium)
                     if account.active {
-                        Text("Ativa")
+                        Text("Active")
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 6)
@@ -171,19 +173,19 @@ private struct AccountRow: View {
                 ProgressView().controlSize(.small)
             } else {
                 if !account.active {
-                    Button("Ativar", action: activate)
+                    Button("Switch", action: activate)
                         .disabled(!account.isValid)
                 }
-                Button("Sair…", role: .destructive, action: logout)
+                Button("Sign Out…", role: .destructive, action: logout)
             }
         }
         .padding(.vertical, 2)
     }
 
     private var detail: String {
-        guard account.isValid else { return "Sessão inválida. Saia e adicione a conta de novo." }
-        let source = account.tokenSource == "keyring" ? "Keychain" : (account.tokenSource ?? "desconhecido")
-        return "Credencial: \(source)"
+        guard account.isValid else { return String(localized: "Session expired. Sign out and add the account again.") }
+        let source = account.tokenSource == "keyring" ? "Keychain" : (account.tokenSource ?? String(localized: "unknown"))
+        return String(localized: "Credentials: \(source)")
     }
 }
 
@@ -228,8 +230,8 @@ private struct AddAccountSheet: View {
                 Image(nsImage: GitHubMark.image(size: 28))
                     .renderingMode(.template)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Adicionar conta").font(.headline)
-                    Text("Login pelo navegador com o GitHub CLI")
+                    Text("Add account").font(.headline)
+                    Text("Sign in through your browser with GitHub CLI")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
@@ -241,16 +243,16 @@ private struct AddAccountSheet: View {
                 Spacer()
                 switch flow.phase {
                 case .idle, .failed:
-                    Button("Cancelar") { dismiss() }
+                    Button("Cancel") { dismiss() }
                         .keyboardShortcut(.cancelAction)
-                    Button("Continuar") { Task { await flow.start(host: host) } }
+                    Button("Continue") { Task { await flow.start(host: host) } }
                         .keyboardShortcut(.defaultAction)
                         .disabled(host.trimmingCharacters(in: .whitespaces).isEmpty)
                 case .starting, .waiting:
-                    Button("Cancelar") { flow.cancel() }
+                    Button("Cancel") { flow.cancel() }
                         .keyboardShortcut(.cancelAction)
                 case .done:
-                    Button("Concluir") { dismiss() }
+                    Button("Done") { dismiss() }
                         .keyboardShortcut(.defaultAction)
                 }
             }
@@ -270,10 +272,10 @@ private struct AddAccountSheet: View {
         switch flow.phase {
         case .idle, .failed:
             VStack(alignment: .leading, spacing: 6) {
-                Text("Servidor").font(.system(size: 12, weight: .medium))
+                Text("Server").font(.system(size: 12, weight: .medium))
                 TextField("github.com", text: $host)
                     .textFieldStyle(.roundedBorder)
-                Text("Use github.com ou o endereço do seu GitHub Enterprise.")
+                Text("Use github.com or your GitHub Enterprise address.")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 if case .failed(let message) = flow.phase {
@@ -285,11 +287,11 @@ private struct AddAccountSheet: View {
         case .starting:
             HStack(spacing: 8) {
                 ProgressView().controlSize(.small)
-                Text("Iniciando o GitHub CLI…").foregroundStyle(.secondary)
+                Text("Starting GitHub CLI…").foregroundStyle(.secondary)
             }
         case .waiting(let device):
             VStack(alignment: .leading, spacing: 10) {
-                Text("Copie o código e autorize no navegador:")
+                Text("Copy the code and authorize in your browser:")
                 Text(device.code)
                     .font(.system(size: 26, weight: .semibold, design: .monospaced))
                     .textSelection(.enabled)
@@ -299,20 +301,20 @@ private struct AddAccountSheet: View {
                 Button {
                     flow.copyCodeAndOpenBrowser()
                 } label: {
-                    Label("Copiar código e abrir o GitHub", systemImage: "safari")
+                    Label("Copy Code and Open GitHub", systemImage: "safari")
                         .frame(maxWidth: .infinity)
                 }
                 .controlSize(.large)
                 .buttonStyle(.borderedProminent)
                 HStack(spacing: 6) {
                     ProgressView().controlSize(.small)
-                    Text("Aguardando a autorização…")
+                    Text("Waiting for authorization…")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }
             }
         case .done:
-            Label("Conta adicionada e ativada.", systemImage: "checkmark.circle.fill")
+            Label("Account added and activated.", systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
         }
     }
@@ -327,39 +329,39 @@ private struct GeneralPane: View {
 
     var body: some View {
         Form {
-            Section("Geral") {
+            Section("General") {
                 Toggle(isOn: Binding(get: { loginItem.isEnabled }, set: { _ in loginItem.toggle() })) {
-                    SettingLabel("Abrir no login",
-                                 detail: loginItem.errorMessage ?? "Inicia o GH Switcher quando você entra no Mac.")
+                    SettingLabel("Open at Login",
+                                 detail: loginItem.errorMessage ?? String(localized: "Start GH Switcher when you log in to your Mac."))
                 }
                 Toggle(isOn: $settings.notificationsEnabled) {
-                    SettingLabel("Notificar ao trocar de conta")
+                    SettingLabel("Notify when switching accounts")
                 }
             }
-            Section("Barra de menus") {
+            Section("Menu Bar") {
                 Toggle(isOn: $settings.showLoginInMenuBar) {
-                    SettingLabel("Mostrar login ao lado do ícone")
+                    SettingLabel("Show login next to the icon")
                 }
                 Picker(selection: $settings.glassStyle) {
                     ForEach(GlassStyle.allCases) { Text($0.title).tag($0) }
                 } label: {
-                    SettingLabel("Vidro do painel",
-                                 detail: "Transparente segue a Central de Controle. Padrão é mais opaco.")
+                    SettingLabel("Panel glass",
+                                 detail: String(localized: "Clear matches Control Center. Regular is more opaque."))
                 }
             }
             Section("GitHub CLI") {
                 LabeledContent {
                     HStack {
-                        TextField("", text: $settings.ghPath, prompt: Text(detectedPath ?? "Automático"))
+                        TextField("", text: $settings.ghPath, prompt: Text(detectedPath ?? String(localized: "Automatic")))
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 220)
-                        Button("Detectar") {
+                        Button("Detect") {
                             settings.ghPath = ""
                             Task { detectedPath = await GHCLI.locate() }
                         }
                     }
                 } label: {
-                    SettingLabel("Caminho do gh", detail: "Deixe vazio para detectar automaticamente.")
+                    SettingLabel("gh path", detail: String(localized: "Leave empty to detect automatically."))
                 }
             }
         }
@@ -370,10 +372,10 @@ private struct GeneralPane: View {
 }
 
 private struct SettingLabel: View {
-    let title: String
+    let title: LocalizedStringKey
     let detail: String?
 
-    init(_ title: String, detail: String? = nil) {
+    init(_ title: LocalizedStringKey, detail: String? = nil) {
         self.title = title
         self.detail = detail
     }
@@ -407,24 +409,103 @@ private struct AboutPane: View {
                         .renderingMode(.template)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("GH Switcher").font(.system(size: 15, weight: .semibold))
-                        Text("Versão \(appVersion)")
+                        Text("Version \(appVersion)")
                             .font(.system(size: 11))
                             .foregroundStyle(.secondary)
                     }
                 }
                 .padding(.vertical, 4)
             }
-            Section("Ambiente") {
+            Section("Environment") {
                 LabeledContent("GitHub CLI", value: ghVersion)
             }
-            Section("Segurança") {
-                Text("O app nunca lê, grava ou exibe tokens. As credenciais ficam com o GitHub CLI, no Keychain do macOS.")
+            Section("Links") {
+                Link(destination: Links.repository) {
+                    Label("Source code on GitHub", systemImage: "chevron.left.forwardslash.chevron.right")
+                }
+                Link(destination: Links.sponsor) {
+                    Label("Sponsor GH Switcher", systemImage: "heart")
+                }
+                Link(destination: Links.issues) {
+                    Label("Report an issue", systemImage: "exclamationmark.bubble")
+                }
+            }
+            Section("Security") {
+                Text("This app never reads, stores or displays tokens. Credentials stay with GitHub CLI in the macOS Keychain.")
                     .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Text("Licensed under FSL-1.1-MIT. Not affiliated with GitHub, Inc.")
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-        .task { ghVersion = await GHCLI.version() ?? "não encontrado" }
+        .task { ghVersion = await GHCLI.version() ?? String(localized: "not found") }
+    }
+}
+
+enum Links {
+    static let repository = URL(string: "https://github.com/willianrattis/gh-switcher")!
+    static let issues = URL(string: "https://github.com/willianrattis/gh-switcher/issues")!
+    static let sponsor = URL(string: "https://github.com/sponsors/willianrattis")!
+    static let ghCLI = URL(string: "https://cli.github.com")!
+}
+
+// MARK: - Boas-vindas
+
+/// Mostrada quando o GitHub CLI não está instalado.
+private struct InstallGHSection: View {
+    @ObservedObject var store: AccountStore
+    private let hasBrew = GHCLI.locateBrew() != nil
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    Image(nsImage: GitHubMark.image(size: 32))
+                        .renderingMode(.template)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Welcome to GH Switcher").font(.system(size: 13, weight: .semibold))
+                        Text("GH Switcher uses the GitHub CLI (gh) to switch accounts. Install it to get started.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                HStack {
+                    if hasBrew {
+                        Button {
+                            Task { await store.installGH() }
+                        } label: {
+                            if store.isInstallingGH {
+                                HStack(spacing: 6) {
+                                    ProgressView().controlSize(.small)
+                                    Text("Installing…")
+                                }
+                            } else {
+                                Text("Install with Homebrew")
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(store.isInstallingGH)
+                    } else {
+                        Link("Download GitHub CLI", destination: Links.ghCLI)
+                            .buttonStyle(.borderedProminent)
+                    }
+                    Button("Check Again") { Task { await store.userRefresh() } }
+                        .disabled(store.isInstallingGH)
+                    Spacer()
+                }
+                if let error = store.installError {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red)
+                }
+            }
+            .padding(.vertical, 4)
+        }
     }
 }
 
@@ -457,7 +538,7 @@ final class SettingsWindowController: NSWindowController, NSWindowDelegate {
                               defer: false)
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
-        window.title = "Ajustes do GH Switcher"
+        window.title = String(localized: "GH Switcher Settings")
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(
             rootView: SettingsView(store: store, loginItem: loginItem, settings: settings)

@@ -1,0 +1,43 @@
+name: Bug report
+description: Something isn't working as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Never paste tokens** or the raw output of `gh auth status --json` here.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: GH Switcher version
+      description: Settings > About
+      placeholder: "1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "macOS 27.0.1"
+    validations:
+      required: true
+  - type: input
+    id: gh-version
+    attributes:
+      label: GitHub CLI version
+      description: Output of `gh --version` (first line)
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Homebrew
+        - DMG from GitHub Releases
+        - Built from source

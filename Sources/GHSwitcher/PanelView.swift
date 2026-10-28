@@ -43,7 +43,7 @@ struct PanelView: View {
                     }
 
                     if store.accounts.isEmpty && store.errorMessage == nil {
-                        EmptyTile(action: openSettings)
+                        EmptyTile(ghMissing: store.ghMissing, action: openSettings)
                     }
 
                     if let message = store.errorMessage {
@@ -54,7 +54,7 @@ struct PanelView: View {
                     controls
                 }
 
-                Button("Sair do GH Switcher") { NSApplication.shared.terminate(nil) }
+                Button("Quit GH Switcher") { NSApplication.shared.terminate(nil) }
                     .buttonStyle(FooterCapsuleStyle())
                     .keyboardShortcut("q")
                     .padding(.top, 18)
@@ -73,7 +73,7 @@ struct PanelView: View {
         HStack(spacing: 7) {
             Image(nsImage: GitHubMark.image(size: 14))
                 .renderingMode(.template)
-            Text(store.activeAccount?.login ?? "Nenhuma conta ativa")
+            Text(store.activeAccount?.login ?? String(localized: "No active account"))
                 .font(.system(size: 13, weight: .semibold))
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -83,18 +83,18 @@ struct PanelView: View {
         .padding(.horizontal, 16)
         .frame(width: Grid.width, height: 32)
         .glassSurface(Capsule())
-        .help("Conta ativa")
+        .help("Active account")
     }
 
     private var controls: some View {
         HStack(spacing: Grid.gap) {
-            RoundControl(symbol: "arrow.clockwise", help: "Atualizar", isSpinning: store.isRefreshing) {
+            RoundControl(symbol: "arrow.clockwise", help: "Refresh", isSpinning: store.isRefreshing) {
                 Haptics.tap()
                 Task { await store.userRefresh() }
             }
             .disabled(store.isRefreshing)
 
-            RoundControl(symbol: copied ? "checkmark" : "doc.on.doc", help: "Copiar login ativo") {
+            RoundControl(symbol: copied ? "checkmark" : "doc.on.doc", help: "Copy active login") {
                 Haptics.tap()
                 store.copyActiveLogin()
                 withAnimation(Motion.snappy) { copied = true }
@@ -105,7 +105,7 @@ struct PanelView: View {
             }
             .disabled(store.activeAccount == nil)
 
-            RoundControl(symbol: "safari", help: "Abrir perfil no GitHub") {
+            RoundControl(symbol: "safari", help: "Open profile on GitHub") {
                 Haptics.tap()
                 if let account = store.activeAccount,
                    let url = URL(string: "https://\(account.host)/\(account.login)") {
@@ -114,7 +114,7 @@ struct PanelView: View {
             }
             .disabled(store.activeAccount == nil)
 
-            RoundControl(symbol: "gearshape", help: "Ajustes…") {
+            RoundControl(symbol: "gearshape", help: "Settings…") {
                 Haptics.tap()
                 openSettings()
             }
@@ -197,21 +197,21 @@ private struct AccountTile: View {
         .overlay(shape.strokeBorder(Color.accentColor.opacity(account.active ? 0.6 : 0), lineWidth: 1))
         .brightness(hovering && !account.active ? 0.04 : 0)
         .onHover { hovering = $0 }
-        .help(account.active ? "Conta ativa" : "Ativar \(account.login)")
+        .help(account.active ? Text("Active account") : Text("Switch to \(account.login)"))
         .accessibilityAddTraits(account.active ? .isSelected : [])
     }
 
     private var subtitle: String {
-        if isSwitching { return "Ativando…" }
-        if !account.isValid { return "Sessão inválida. Entre de novo nos Ajustes" }
+        if isSwitching { return String(localized: "Switching…") }
+        if !account.isValid { return String(localized: "Session expired. Sign in again in Settings") }
         let source = account.host == "github.com" ? "GitHub" : account.host
-        return account.active ? "Ativa · \(source)" : source
+        return account.active ? String(localized: "Active · \(source)") : source
     }
 }
 
 private struct RoundControl: View {
     let symbol: String
-    let help: String
+    let help: LocalizedStringKey
     var isSpinning = false
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
@@ -238,16 +238,17 @@ private struct RoundControl: View {
 }
 
 private struct EmptyTile: View {
+    let ghMissing: Bool
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                IconCircle(symbol: "plus", isOn: false)
+                IconCircle(symbol: ghMissing ? "arrow.down" : "plus", isOn: false)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("Adicionar conta")
+                    (ghMissing ? Text("Install GitHub CLI") : Text("Add account"))
                         .font(.system(size: 13, weight: .semibold))
-                    Text("Nenhuma conta no GitHub CLI")
+                    (ghMissing ? Text("Required to switch accounts") : Text("No accounts in GitHub CLI yet"))
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 }

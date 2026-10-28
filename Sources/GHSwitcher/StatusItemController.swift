@@ -40,7 +40,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             .combineLatest(settings.$showLoginInMenuBar)
             .sink { [weak self] login, showLogin in
                 guard let button = self?.statusItem.button else { return }
-                button.toolTip = "GH Switcher: " + (login ?? "nenhuma conta ativa")
+                button.toolTip = "GH Switcher: " + (login ?? String(localized: "no active account"))
                 button.title = showLogin ? (login.map { " " + $0 } ?? "") : ""
             }
             .store(in: &cancellables)
@@ -54,6 +54,16 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         panel.contentView = hostingView
         panel.delegate = self
 
+        // Primeira execução sem gh ou sem contas: abre os Ajustes com as boas-vindas.
+        store.$hasLoaded
+            .first { $0 }
+            .sink { [weak self] _ in
+                guard let self, self.store.needsOnboarding else { return }
+                self.openSettings()
+            }
+            .store(in: &cancellables)
+
+        #if DEBUG
         let env = ProcessInfo.processInfo.environment
         if env["GHS_OPEN_ON_LAUNCH"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.open() }
@@ -61,6 +71,7 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if env["GHS_OPEN_SETTINGS"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.openSettings() }
         }
+        #endif
     }
 
     @objc private func statusItemClicked() {
@@ -74,11 +85,11 @@ final class StatusItemController: NSObject, NSWindowDelegate {
 
     private func showContextMenu() {
         let menu = NSMenu()
-        let settingsItem = NSMenuItem(title: "Ajustes…", action: #selector(openSettingsFromMenu), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: String(localized: "Settings…"), action: #selector(openSettingsFromMenu), keyEquivalent: ",")
         settingsItem.target = self
         menu.addItem(settingsItem)
         menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Sair do GH Switcher", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        menu.addItem(NSMenuItem(title: String(localized: "Quit GH Switcher"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil

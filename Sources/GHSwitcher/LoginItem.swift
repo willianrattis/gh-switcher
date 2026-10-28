@@ -18,7 +18,7 @@ final class LoginItem: ObservableObject {
             }
             errorMessage = nil
         } catch {
-            errorMessage = "Iniciar ao fazer login: \(error.localizedDescription)"
+            errorMessage = String(localized: "Open at Login: \(error.localizedDescription)")
         }
         refresh()
     }

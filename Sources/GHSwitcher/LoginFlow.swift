@@ -113,7 +113,7 @@ final class LoginFlow: ObservableObject {
             let line = buffer.split(separator: "\n")
                 .map { $0.trimmingCharacters(in: .whitespaces) }
                 .last { !$0.isEmpty && DeviceCode.parse($0) == nil }
-            phase = .failed(line ?? "Não foi possível entrar (código \(status))")
+            phase = .failed(line ?? String(localized: "Sign-in failed (exit code \(Int(status)))"))
         }
     }
 }

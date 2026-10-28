@@ -1,18 +1,14 @@
 #!/bin/bash
+# Monta build/GHSwitcher.app para desenvolvimento (debug, assinatura ad-hoc).
+# Para distribuição, use scripts/release.sh.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
+source scripts/lib.sh
 
-APP="build/GHSwitcher.app"
-
-swift build -c release
-BIN="$(swift build -c release --show-bin-path)/GHSwitcher"
-
-rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/GHSwitcher"
-cp Resources/Info.plist "$APP/Contents/Info.plist"
-
+CONFIG="${CONFIG:-debug}"
+swift build -c "$CONFIG"
+assemble_app "$(swift build -c "$CONFIG" --show-bin-path)/GHSwitcher"
 codesign --force --deep -s - "$APP"
 
-echo "Gerado: $APP"
+echo "Gerado: $APP ($CONFIG, ad-hoc)"
