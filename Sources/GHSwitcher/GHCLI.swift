@@ -1,0 +1,92 @@
+import Foundation
+
+enum GHError: LocalizedError {
+    case notFound
+    case failed(String)
+    case invalidOutput
+
+    var errorDescription: String? {
+        switch self {
+        case .notFound: return "gh não encontrado"
+        case .failed(let message): return message
+        case .invalidOutput: return "Saída inesperada do gh"
+        }
+    }
+}
+
+struct ProcessResult: Sendable {
+    let status: Int32
+    let stdout: Data
+    let stderr: Data
+}
+
+enum GHCLI {
+    static let pathKey = "ghPath"
+
+    static func locate() async -> String? {
+        let fm = FileManager.default
+        if let custom = UserDefaults.standard.string(forKey: pathKey), fm.isExecutableFile(atPath: custom) {
+            return custom
+        }
+        for path in ["/opt/homebrew/bin/gh", "/usr/local/bin/gh"] where fm.isExecutableFile(atPath: path) {
+            return path
+        }
+        if let result = try? await run("/bin/zsh", ["-lc", "command -v gh"]), result.status == 0 {
+            let path = String(decoding: result.stdout, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+            if fm.isExecutableFile(atPath: path) { return path }
+        }
+        return nil
+    }
+
+    static func listAccounts() async throws -> [GHAccount] {
+        guard let gh = await locate() else { throw GHError.notFound }
+        let result = try await run(gh, ["auth", "status", "--json", "hosts"])
+        // Com conta inválida o gh pode sair com código 1 e ainda imprimir JSON.
+        if let accounts = try? GHAuthStatus.parse(result.stdout) { return accounts }
+        if result.status != 0 { throw GHError.failed(message(from: result)) }
+        throw GHError.invalidOutput
+    }
+
+    static func switchAccount(host: String, login: String) async throws {
+        guard let gh = await locate() else { throw GHError.notFound }
+        let result = try await run(gh, ["auth", "switch", "--hostname", host, "--user", login])
+        if result.status != 0 { throw GHError.failed(message(from: result)) }
+    }
+
+    private static func message(from result: ProcessResult) -> String {
+        let text = String(decoding: result.stderr, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
+        let firstLine = text.split(separator: "\n").first.map(String.init) ?? ""
+        return firstLine.isEmpty ? "Comando gh falhou (código \(result.status))" : firstLine
+    }
+
+    static func run(_ executable: String, _ arguments: [String]) async throws -> ProcessResult {
+        try await withCheckedThrowingContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: executable)
+                process.arguments = arguments
+                var env = ProcessInfo.processInfo.environment
+                let path = env["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
+                env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + path
+                env["HOME"] = FileManager.default.homeDirectoryForCurrentUser.path
+                env["GH_PROMPT_DISABLED"] = "1"
+                env["NO_COLOR"] = "1"
+                process.environment = env
+                let out = Pipe()
+                let err = Pipe()
+                process.standardOutput = out
+                process.standardError = err
+                process.standardInput = FileHandle.nullDevice
+                do {
+                    try process.run()
+                    let outData = out.fileHandleForReading.readDataToEndOfFile()
+                    let errData = err.fileHandleForReading.readDataToEndOfFile()
+                    process.waitUntilExit()
+                    continuation.resume(returning: ProcessResult(status: process.terminationStatus, stdout: outData, stderr: errData))
+                } catch {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+    }
+}
