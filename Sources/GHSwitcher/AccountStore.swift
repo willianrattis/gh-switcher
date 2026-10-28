@@ -33,6 +33,19 @@ final class AccountStore: ObservableObject {
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.refresh() }
         }
+        #if DEBUG
+        if Demo.isEnabled, ProcessInfo.processInfo.environment["GHS_DEMO_AUTOPLAY"] == "1" {
+            Task { [weak self] in
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                while let self {
+                    if let next = self.accounts.first(where: { !$0.active }) {
+                        await self.switchTo(next)
+                    }
+                    try? await Task.sleep(nanoseconds: 1_800_000_000)
+                }
+            }
+        }
+        #endif
     }
 
     /// Atualização pedida pelo usuário: mantém o indicador visível por um tempo mínimo.
@@ -48,6 +61,12 @@ final class AccountStore: ObservableObject {
 
     func refresh() async {
         defer { hasLoaded = true }
+        #if DEBUG
+        if Demo.isEnabled {
+            accounts = Demo.accounts
+            return
+        }
+        #endif
         do {
             accounts = try await GHCLI.listAccounts()
             ghMissing = false
@@ -88,6 +107,14 @@ final class AccountStore: ObservableObject {
             switchingID = nil
         }
         do {
+            #if DEBUG
+            if Demo.isEnabled {
+                try await Task.sleep(nanoseconds: 600_000_000)
+                Demo.activate(account)
+                await refresh()
+                return
+            }
+            #endif
             try await GHCLI.switchAccount(host: account.host, login: account.login)
             await refresh()
             let login = activeAccount?.login ?? account.login

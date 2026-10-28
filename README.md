@@ -9,7 +9,11 @@ like macOS Control Center.
 
 🇧🇷 [Leia em português](README.pt-BR.md)
 
-<!-- docs/panel.png and docs/demo.gif are added before the first release -->
+<p align="center">
+  <img src="docs/demo.gif" width="322" alt="GH Switcher panel switching accounts">
+  &nbsp;&nbsp;
+  <img src="docs/settings-accounts.png" width="420" alt="GH Switcher settings">
+</p>
 
 ## Features
 

@@ -51,7 +51,8 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(width: 600, height: 620)
+        .frame(width: 600)
+        .frame(minHeight: 620, maxHeight: .infinity)
         .ignoresSafeArea()
     }
 
@@ -194,7 +195,7 @@ private struct Avatar: View {
 
     var body: some View {
         Group {
-            if account.host == "github.com",
+            if account.host == "github.com", !isDemo,
                let url = URL(string: "https://github.com/\(account.login).png?size=64") {
                 AsyncImage(url: url) { image in
                     image.resizable().scaledToFill()
@@ -208,6 +209,14 @@ private struct Avatar: View {
         .frame(width: 32, height: 32)
         .clipShape(Circle())
         .overlay(Circle().strokeBorder(Color.primary.opacity(0.1)))
+    }
+
+    private var isDemo: Bool {
+        #if DEBUG
+        return Demo.isEnabled
+        #else
+        return false
+        #endif
     }
 
     private var placeholder: some View {

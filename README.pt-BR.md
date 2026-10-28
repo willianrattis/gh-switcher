@@ -9,6 +9,12 @@ Central de Controle do macOS.
 
 🇺🇸 [Read in English](README.md)
 
+<p align="center">
+  <img src="docs/demo.gif" width="322" alt="Painel do GH Switcher trocando de conta">
+  &nbsp;&nbsp;
+  <img src="docs/settings-accounts.png" width="420" alt="Ajustes do GH Switcher">
+</p>
+
 ## Recursos
 
 - **Troca com um clique** da conta ativa do `gh`, por servidor (github.com e GitHub Enterprise).

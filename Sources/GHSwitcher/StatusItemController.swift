@@ -131,6 +131,9 @@ final class StatusItemController: NSObject, NSWindowDelegate {
             presentation.isShown = true
         }
 
+        #if DEBUG
+        if Demo.isEnabled { return }
+        #endif
         mouseMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             Task { @MainActor in self?.close() }
         }
@@ -170,6 +173,9 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     func windowDidResignKey(_ notification: Notification) {
+        #if DEBUG
+        if Demo.isEnabled { return }
+        #endif
         close()
     }
 }
