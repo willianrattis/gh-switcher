@@ -21,10 +21,11 @@ Central de Controle do macOS.
 ## Instalação
 
 ```bash
+brew trust willianrattis/tap
 brew install --cask willianrattis/tap/gh-switcher
 ```
 
-O Homebrew também instala o GitHub CLI, se você ainda não tiver. Depois abra o
+O `brew trust` é exigido pelo Homebrew para taps de terceiros. O Homebrew também instala o GitHub CLI, se você ainda não tiver. Depois abra o
 **GH Switcher** e, se precisar, clique em **Adicionar conta**.
 
 Prefere baixar? Pegue o `.dmg` na

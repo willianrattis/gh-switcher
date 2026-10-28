@@ -23,10 +23,11 @@ like macOS Control Center.
 ## Install
 
 ```bash
+brew trust willianrattis/tap
 brew install --cask willianrattis/tap/gh-switcher
 ```
 
-Homebrew also installs the GitHub CLI if you don't have it. Then open **GH Switcher** and,
+`brew trust` is required by Homebrew for third-party taps. Homebrew also installs the GitHub CLI if you don't have it. Then open **GH Switcher** and,
 if needed, click **Add account**.
 
 Prefer a download? Get the `.dmg` from the
