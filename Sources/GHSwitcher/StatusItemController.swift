@@ -71,8 +71,48 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         if env["GHS_OPEN_SETTINGS"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.openSettings() }
         }
+        if Demo.isTour {
+            Task { [weak self] in await self?.runDemoTour() }
+        }
         #endif
     }
+
+    #if DEBUG
+    /// Roteiro do vídeo: abre o painel, troca de conta duas vezes e navega pelos Ajustes.
+    private func runDemoTour() async {
+        func wait(_ seconds: Double) async {
+            try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+        }
+        await wait(0.5)
+        layoutPanel()
+        writeDemoRegion()
+        await wait(0.8)
+        open()
+        await wait(2.0)
+        if let next = store.accounts.first(where: { !$0.active }) { await store.switchTo(next) }
+        await wait(1.8)
+        if let next = store.accounts.first(where: { !$0.active }) { await store.switchTo(next) }
+        await wait(1.8)
+        openSettings()
+        if let window = settingsWindow?.window {
+            window.setFrameTopLeftPoint(NSPoint(x: panel.frame.maxX - shadowInset - window.frame.width,
+                                                y: panel.frame.maxY - shadowInset))
+        }
+    }
+
+    /// Grava a região de gravação (painel + Ajustes) em coordenadas do screencapture.
+    private func writeDemoRegion() {
+        guard let path = ProcessInfo.processInfo.environment["GHS_DEMO_REGION_FILE"],
+              let mainHeight = NSScreen.screens.first?.frame.height else { return }
+        let margin: CGFloat = 110
+        let width: CGFloat = 600 + margin * 2
+        let height: CGFloat = 648 + 90
+        let right = panel.frame.maxX - shadowInset + margin
+        let top = mainHeight - (panel.frame.maxY - shadowInset) - 24
+        let region = "\(Int(right - width)),\(Int(top)),\(Int(width)),\(Int(height))"
+        try? region.write(toFile: path, atomically: true, encoding: .utf8)
+    }
+    #endif
 
     @objc private func statusItemClicked() {
         if NSApp.currentEvent?.type == .rightMouseUp {

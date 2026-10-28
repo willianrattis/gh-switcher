@@ -54,6 +54,16 @@ struct SettingsView: View {
         .frame(width: 600)
         .frame(minHeight: 620, maxHeight: .infinity)
         .ignoresSafeArea()
+        #if DEBUG
+        .task {
+            // Tour de demonstração: navega pelas abas sozinho.
+            guard Demo.isTour else { return }
+            for next in [SettingsPane.general, .about, .accounts] {
+                try? await Task.sleep(nanoseconds: 2_600_000_000)
+                withAnimation(Motion.snappy) { pane = next }
+            }
+        }
+        #endif
     }
 
     private var sidebar: some View {
