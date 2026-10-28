@@ -67,6 +67,23 @@ final class AccountStore: ObservableObject {
         }
     }
 
+    func logout(_ account: GHAccount) async {
+        guard !isBusy else { return }
+        isBusy = true
+        switchingID = account.id
+        defer {
+            isBusy = false
+            switchingID = nil
+        }
+        do {
+            try await GHCLI.logout(host: account.host, login: account.login)
+            await refresh()
+            Notifier.send("Conta removida: \(account.login)")
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func copyActiveLogin() {
         guard let login = activeAccount?.login else { return }
         NSPasteboard.general.clearContents()

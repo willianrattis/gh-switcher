@@ -1,82 +1,64 @@
 import AppKit
 import SwiftUI
 
-/// Grade da Central de Controle: unidade de 64pt e espaço de 12pt (largura de 4 unidades).
-private enum Grid {
-    static let unit: CGFloat = 64
-    static let gap: CGFloat = 12
+/// Grade da Central de Controle: 4 colunas de 62pt com espaço de 14pt.
+enum Grid {
+    static let unit: CGFloat = 62
+    static let gap: CGFloat = 14
     static let width: CGFloat = unit * 4 + gap * 3
-    static let wideTile: CGFloat = unit * 2 + gap
-    static let iconCircle: CGFloat = 38
+    static let tileHeight: CGFloat = 64
+    static let iconCircle: CGFloat = 36
 }
 
 /// Blocos de Liquid Glass soltos, sem painel por trás.
 struct PanelView: View {
     @ObservedObject var store: AccountStore
-    @ObservedObject var loginItem: LoginItem
+    @ObservedObject var settings: AppSettings
     @ObservedObject var presentation: PanelPresentation
+    let openSettings: () -> Void
     @State private var copied = false
 
     var body: some View {
-        GlassGroup {
-            VStack(spacing: Grid.gap) {
+        GlassGroup(spacing: Grid.gap) {
+            VStack(spacing: 0) {
                 header
+                    .padding(.bottom, 12)
 
-                ForEach(store.accountsByHost, id: \.host) { group in
-                    if store.accountsByHost.count > 1 {
-                        SectionTitle(group.host)
-                    }
-                    ForEach(group.accounts) { account in
-                        AccountTile(account: account,
-                                    isSwitching: store.switchingID == account.id,
-                                    isLocked: store.isBusy) {
-                            Haptics.tap()
-                            Task { await store.switchTo(account) }
+                VStack(spacing: Grid.gap) {
+                    ForEach(store.accountsByHost, id: \.host) { group in
+                        if store.accountsByHost.count > 1 {
+                            SectionTitle(group.host)
+                        }
+                        ForEach(group.accounts) { account in
+                            AccountTile(account: account,
+                                        isSwitching: store.switchingID == account.id,
+                                        isLocked: store.isBusy) {
+                                Haptics.tap()
+                                Task { await store.switchTo(account) }
+                            }
                         }
                     }
-                }
 
-                if let message = store.errorMessage ?? loginItem.errorMessage {
-                    ErrorTile(message: message)
-                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
-                }
-
-                HStack(spacing: Grid.gap) {
-                    RoundControl(symbol: "arrow.clockwise",
-                                 help: "Atualizar",
-                                 isSpinning: store.isRefreshing) {
-                        Haptics.tap()
-                        Task { await store.userRefresh() }
+                    if store.accounts.isEmpty && store.errorMessage == nil {
+                        EmptyTile(action: openSettings)
                     }
-                    .disabled(store.isRefreshing)
 
-                    RoundControl(symbol: copied ? "checkmark" : "doc.on.doc",
-                                 help: "Copiar login ativo",
-                                 isSpinning: false) {
-                        Haptics.tap()
-                        store.copyActiveLogin()
-                        withAnimation(Motion.snappy) { copied = true }
-                        Task {
-                            try? await Task.sleep(nanoseconds: 1_200_000_000)
-                            withAnimation(Motion.snappy) { copied = false }
-                        }
+                    if let message = store.errorMessage {
+                        ErrorTile(message: message)
+                            .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
                     }
-                    .disabled(store.activeAccount == nil)
 
-                    ToggleTile(symbol: "power",
-                               title: "Abrir no login",
-                               isOn: loginItem.isEnabled) {
-                        Haptics.tap()
-                        withAnimation(Motion.snappy) { loginItem.toggle() }
-                    }
+                    controls
                 }
 
                 Button("Sair do GH Switcher") { NSApplication.shared.terminate(nil) }
-                    .buttonStyle(CapsuleGlassButtonStyle())
+                    .buttonStyle(FooterCapsuleStyle())
                     .keyboardShortcut("q")
+                    .padding(.top, 18)
             }
             .frame(width: Grid.width)
         }
+        .environment(\.glassStyle, settings.glassStyle)
         .animation(Motion.snappy, value: store.accounts)
         .animation(Motion.snappy, value: store.errorMessage)
         .scaleEffect(presentation.isShown ? 1 : 0.94, anchor: .top)
@@ -87,17 +69,53 @@ struct PanelView: View {
         HStack(spacing: 6) {
             Image(nsImage: GitHubMark.image(size: 13))
                 .renderingMode(.template)
-                .foregroundStyle(.primary)
-            Text(store.activeAccount.map { "Conta ativa: \($0.login)" } ?? "Nenhuma conta ativa")
+            Text(store.activeAccount?.login ?? "Nenhuma conta ativa")
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .contentTransition(.opacity)
         }
-        .padding(.horizontal, 14)
-        .frame(height: 28)
+        .foregroundStyle(.primary)
+        .padding(.horizontal, 12)
+        .frame(height: 24)
         .glassSurface(Capsule())
+        .help("Conta ativa")
+    }
+
+    private var controls: some View {
+        HStack(spacing: Grid.gap) {
+            RoundControl(symbol: "arrow.clockwise", help: "Atualizar", isSpinning: store.isRefreshing) {
+                Haptics.tap()
+                Task { await store.userRefresh() }
+            }
+            .disabled(store.isRefreshing)
+
+            RoundControl(symbol: copied ? "checkmark" : "doc.on.doc", help: "Copiar login ativo") {
+                Haptics.tap()
+                store.copyActiveLogin()
+                withAnimation(Motion.snappy) { copied = true }
+                Task {
+                    try? await Task.sleep(nanoseconds: 1_200_000_000)
+                    withAnimation(Motion.snappy) { copied = false }
+                }
+            }
+            .disabled(store.activeAccount == nil)
+
+            RoundControl(symbol: "safari", help: "Abrir perfil no GitHub") {
+                Haptics.tap()
+                if let account = store.activeAccount,
+                   let url = URL(string: "https://\(account.host)/\(account.login)") {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            .disabled(store.activeAccount == nil)
+
+            RoundControl(symbol: "gearshape", help: "Ajustes…") {
+                Haptics.tap()
+                openSettings()
+            }
+            .keyboardShortcut(",")
+        }
     }
 }
 
@@ -112,11 +130,12 @@ private struct SectionTitle: View {
             .font(.system(size: 11, weight: .semibold))
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 12)
+            .padding(.bottom, -6)
     }
 }
 
-/// Círculo de ícone da Central de Controle: azul preenchido quando ligado.
+/// Círculo de ícone da Central de Controle: branco com ícone azul quando ligado.
 private struct IconCircle: View {
     let symbol: String
     let isOn: Bool
@@ -124,9 +143,9 @@ private struct IconCircle: View {
     var body: some View {
         Image(systemName: symbol)
             .font(.system(size: 15, weight: .semibold))
-            .foregroundStyle(isOn ? Color.white : Color.primary)
+            .foregroundStyle(isOn ? Color.accentColor : Color.primary)
             .frame(width: Grid.iconCircle, height: Grid.iconCircle)
-            .background(Circle().fill(isOn ? Color.accentColor : Color.primary.opacity(0.1)))
+            .background(Circle().fill(isOn ? Color.white : Color.primary.opacity(0.14)))
             .animation(Motion.snappy, value: isOn)
     }
 }
@@ -136,12 +155,15 @@ private struct AccountTile: View {
     let isSwitching: Bool
     let isLocked: Bool
     let action: () -> Void
+    @State private var hovering = false
+
+    private let shape = RoundedRectangle(cornerRadius: 30, style: .continuous)
 
     var body: some View {
         Button {
             if !account.active && account.isValid && !isLocked { action() }
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 IconCircle(symbol: account.isValid ? "person.fill" : "exclamationmark",
                            isOn: account.active)
                 VStack(alignment: .leading, spacing: 1) {
@@ -152,36 +174,33 @@ private struct AccountTile: View {
                         .truncationMode(.middle)
                     Text(subtitle)
                         .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(account.active ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.secondary))
+                        .lineLimit(2)
                         .contentTransition(.opacity)
                 }
                 Spacer(minLength: 0)
-                Group {
-                    if isSwitching {
-                        ProgressView().controlSize(.small)
-                    } else if account.active {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(Color.accentColor)
-                            .transition(.scale.combined(with: .opacity))
-                    }
+                if isSwitching {
+                    ProgressView().controlSize(.small)
                 }
-                .frame(width: 18)
             }
-            .padding(.leading, 13)
+            .padding(.leading, 14)
             .padding(.trailing, 16)
-            .frame(width: Grid.width, height: Grid.unit)
-            .contentShape(Capsule())
+            .frame(width: Grid.width, height: Grid.tileHeight)
+            .contentShape(shape)
         }
         .buttonStyle(PressableStyle())
-        .glassSurface(Capsule(), interactive: !account.active)
+        .glassSurface(shape, interactive: !account.active,
+                      tint: account.active ? Color.accentColor.opacity(0.16) : nil)
+        .overlay(shape.strokeBorder(Color.accentColor.opacity(account.active ? 0.55 : 0), lineWidth: 1))
+        .brightness(hovering && !account.active ? 0.04 : 0)
+        .onHover { hovering = $0 }
         .help(account.active ? "Conta ativa" : "Ativar \(account.login)")
         .accessibilityAddTraits(account.active ? .isSelected : [])
     }
 
     private var subtitle: String {
         if isSwitching { return "Ativando…" }
-        if !account.isValid { return "Precisa de login no terminal" }
+        if !account.isValid { return "Sessão inválida. Entre de novo nos Ajustes" }
         let source = account.host == "github.com" ? "GitHub" : account.host
         return account.active ? "Ativa · \(source)" : source
     }
@@ -190,14 +209,15 @@ private struct AccountTile: View {
 private struct RoundControl: View {
     let symbol: String
     let help: String
-    let isSpinning: Bool
+    var isSpinning = false
     let action: () -> Void
     @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 19, weight: .medium))
+                .font(.system(size: 19, weight: .regular))
                 .foregroundStyle(.primary)
                 .contentTransition(.symbolEffectIfAvailable)
                 .spinning(isSpinning)
@@ -206,42 +226,36 @@ private struct RoundControl: View {
         }
         .buttonStyle(PressableStyle())
         .glassSurface(Circle(), interactive: true)
-        .opacity(isEnabled || isSpinning ? 1 : 0.45)
+        .brightness(hovering && isEnabled ? 0.04 : 0)
+        .onHover { hovering = $0 }
+        .opacity(isEnabled || isSpinning ? 1 : 0.4)
         .help(help)
         .accessibilityLabel(help)
     }
 }
 
-private struct ToggleTile: View {
-    let symbol: String
-    let title: String
-    let isOn: Bool
+private struct EmptyTile: View {
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                IconCircle(symbol: symbol, isOn: isOn)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                    Text(isOn ? "Ativado" : "Desativado")
-                        .font(.system(size: 10))
+                IconCircle(symbol: "plus", isOn: false)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Adicionar conta")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text("Nenhuma conta no GitHub CLI")
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
-                        .contentTransition(.opacity)
                 }
                 Spacer(minLength: 0)
             }
-            .padding(.leading, 13)
-            .frame(width: Grid.wideTile, height: Grid.unit)
+            .padding(.leading, 14)
+            .frame(width: Grid.width, height: Grid.tileHeight)
             .contentShape(Capsule())
         }
         .buttonStyle(PressableStyle())
-        .glassSurface(Capsule(), interactive: true)
-        .help("Iniciar ao fazer login")
-        .accessibilityValue(isOn ? "Ativado" : "Desativado")
+        .glassSurface(RoundedRectangle(cornerRadius: 30, style: .continuous), interactive: true)
     }
 }
 
@@ -261,7 +275,7 @@ private struct ErrorTile: View {
         }
         .padding(14)
         .frame(width: Grid.width)
-        .glassSurface(RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .glassSurface(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 }
 
@@ -275,23 +289,28 @@ private struct PressableStyle: ButtonStyle {
     }
 }
 
-private struct CapsuleGlassButtonStyle: ButtonStyle {
+/// Rodapé discreto, como "Editar Controles".
+private struct FooterCapsuleStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 16)
-            .frame(height: 28)
+            .font(.system(size: 12))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 14)
+            .frame(height: 26)
             .glassSurface(Capsule(), interactive: true)
             .scaleEffect(configuration.isPressed ? 0.94 : 1)
             .animation(.spring(response: 0.22, dampingFraction: 0.6), value: configuration.isPressed)
     }
 }
 
-private enum Haptics {
+enum Haptics {
     static func tap() {
         NSHapticFeedbackManager.defaultPerformer.perform(.generic, performanceTime: .now)
     }
+}
+
+enum Motion {
+    static let snappy = Animation.spring(response: 0.3, dampingFraction: 0.85)
 }
 
 private struct SpinningModifier: ViewModifier {
@@ -320,40 +339,9 @@ private extension View {
     }
 }
 
-// MARK: - Liquid Glass com fallback
-
-private struct GlassGroup<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        if #available(macOS 26.0, *) {
-            GlassEffectContainer(spacing: Grid.gap) { content }
-        } else {
-            content
-        }
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func glassSurface<S: Shape>(_ shape: S, interactive: Bool = false) -> some View {
-        if #available(macOS 26.0, *) {
-            glassEffect(.regular.interactive(interactive), in: shape)
-        } else {
-            background(.regularMaterial, in: shape)
-                .overlay(shape.stroke(Color.primary.opacity(0.1), lineWidth: 0.5))
-                .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
-        }
-    }
-}
-
 private extension ContentTransition {
     static var symbolEffectIfAvailable: ContentTransition {
         if #available(macOS 14.0, *) { return .symbolEffect(.replace) }
         return .identity
     }
-}
-
-private enum Motion {
-    static let snappy = Animation.spring(response: 0.3, dampingFraction: 0.85)
 }

@@ -17,6 +17,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         Notifier.requestAuthorization()
-        controller = StatusItemController(store: AccountStore(), loginItem: LoginItem())
+        controller = StatusItemController(store: AccountStore(), loginItem: LoginItem(), settings: AppSettings())
     }
 }

@@ -6,56 +6,106 @@ import SwiftUI
 final class StatusItemController: NSObject, NSWindowDelegate {
     private let store: AccountStore
     private let loginItem: LoginItem
+    private let settings: AppSettings
     private let presentation = PanelPresentation()
-    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+    private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     private let panel = FloatingPanel()
     private var hostingView: SizingHostingView<AnyView>!
+    private var settingsWindow: SettingsWindowController?
     private var mouseMonitor: Any?
     private var cancellables = Set<AnyCancellable>()
 
     /// Margem transparente para as sombras do vidro não serem cortadas.
     private let shadowInset: CGFloat = 16
-    /// Distância entre a barra de menus e o painel.
-    private let topGap: CGFloat = 2
+    /// Distância entre a barra de menus e o primeiro elemento do painel.
+    private let topGap: CGFloat = 8
 
-    init(store: AccountStore, loginItem: LoginItem) {
+    init(store: AccountStore, loginItem: LoginItem, settings: AppSettings) {
         self.store = store
         self.loginItem = loginItem
+        self.settings = settings
         super.init()
 
         if let button = statusItem.button {
             button.image = GitHubMark.image(size: 16)
+            button.imagePosition = .imageLeading
             button.target = self
-            button.action = #selector(togglePanel)
+            button.action = #selector(statusItemClicked)
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
+
         store.$accounts
             .map { $0.first(where: \.active)?.login }
             .removeDuplicates()
-            .sink { [weak self] login in
-                self?.statusItem.button?.toolTip = "GH Switcher: " + (login ?? "nenhuma conta ativa")
+            .combineLatest(settings.$showLoginInMenuBar)
+            .sink { [weak self] login, showLogin in
+                guard let button = self?.statusItem.button else { return }
+                button.toolTip = "GH Switcher: " + (login ?? "nenhuma conta ativa")
+                button.title = showLogin ? (login.map { " " + $0 } ?? "") : ""
             }
             .store(in: &cancellables)
 
-        let root = PanelView(store: store, loginItem: loginItem, presentation: presentation)
-            .padding(shadowInset)
+        let root = PanelView(store: store, settings: settings, presentation: presentation) { [weak self] in
+            self?.openSettings()
+        }
+        .padding(shadowInset)
         hostingView = SizingHostingView(rootView: AnyView(root))
         hostingView.onSizeChange = { [weak self] in self?.layoutPanel() }
         panel.contentView = hostingView
         panel.delegate = self
 
-        if ProcessInfo.processInfo.environment["GHS_OPEN_ON_LAUNCH"] == "1" {
+        let env = ProcessInfo.processInfo.environment
+        if env["GHS_OPEN_ON_LAUNCH"] == "1" {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.open() }
+        }
+        if env["GHS_OPEN_SETTINGS"] == "1" {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.openSettings() }
         }
     }
 
-    @objc private func togglePanel() {
-        panel.isVisible ? close() : open()
+    @objc private func statusItemClicked() {
+        if NSApp.currentEvent?.type == .rightMouseUp {
+            close()
+            showContextMenu()
+        } else {
+            panel.isVisible ? close() : open()
+        }
+    }
+
+    private func showContextMenu() {
+        let menu = NSMenu()
+        let settingsItem = NSMenuItem(title: "Ajustes…", action: #selector(openSettingsFromMenu), keyEquivalent: ",")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        menu.addItem(.separator())
+        menu.addItem(NSMenuItem(title: "Sair do GH Switcher", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"))
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        statusItem.menu = nil
+    }
+
+    @objc private func openSettingsFromMenu() {
+        openSettings()
+    }
+
+    func openSettings() {
+        close()
+        if settingsWindow == nil {
+            settingsWindow = SettingsWindowController(store: store, loginItem: loginItem, settings: settings)
+        }
+        settingsWindow?.show()
     }
 
     func open() {
         loginItem.refresh()
         Task { await store.refresh() }
+
+        // Segue a aparência da barra de menus (escura sobre papel de parede escuro),
+        // como a Central de Controle.
+        let menuBarAppearance = statusItem.button?.effectiveAppearance
+        let isDark = menuBarAppearance?.bestMatch(from: [.darkAqua, .vibrantDark, .aqua, .vibrantLight])
+            .map { $0 == .darkAqua || $0 == .vibrantDark } ?? true
+        panel.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
 
         layoutPanel()
         panel.alphaValue = 0
@@ -102,8 +152,8 @@ final class StatusItemController: NSObject, NSWindowDelegate {
         let visible = screen?.visibleFrame ?? .zero
 
         var x = buttonFrame.midX - size.width / 2
-        x = min(max(x, visible.minX - shadowInset + 6), visible.maxX - size.width + shadowInset - 6)
-        let y = buttonFrame.minY - topGap - size.height + shadowInset
+        x = min(max(x, visible.minX - shadowInset + 8), visible.maxX - size.width + shadowInset - 8)
+        let y = visible.maxY - topGap - size.height + shadowInset
 
         panel.setFrame(NSRect(x: x, y: y, width: size.width, height: size.height), display: true)
     }
