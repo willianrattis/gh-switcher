@@ -78,26 +78,51 @@ final class StatusItemController: NSObject, NSWindowDelegate {
     }
 
     #if DEBUG
-    /// Roteiro do vídeo: abre o painel, troca de conta duas vezes e navega pelos Ajustes.
+    /// Roteiro do vídeo. Com GHS_DEMO_PANEL_ONLY=1: barra de menus + painel (abre, troca 2×, fecha e reabre).
+    /// Sem ele: painel, trocas e navegação pelos Ajustes.
     private func runDemoTour() async {
         func wait(_ seconds: Double) async {
             try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
         }
+        func switchToNext() async {
+            if let next = store.accounts.first(where: { !$0.active }) { await store.switchTo(next) }
+        }
+        let panelOnly = ProcessInfo.processInfo.environment["GHS_DEMO_PANEL_ONLY"] == "1"
         await wait(0.5)
         layoutPanel()
-        writeDemoRegion()
-        await wait(0.8)
+        panelOnly ? writePanelRegion() : writeDemoRegion()
+        await wait(1.0)
         open()
         await wait(2.0)
-        if let next = store.accounts.first(where: { !$0.active }) { await store.switchTo(next) }
+        await switchToNext()
         await wait(1.8)
-        if let next = store.accounts.first(where: { !$0.active }) { await store.switchTo(next) }
+        await switchToNext()
         await wait(1.8)
+        if panelOnly {
+            close()
+            await wait(1.4)
+            open()
+            return
+        }
         openSettings()
         if let window = settingsWindow?.window {
             window.setFrameTopLeftPoint(NSPoint(x: panel.frame.maxX - shadowInset - window.frame.width,
                                                 y: panel.frame.maxY - shadowInset))
         }
+    }
+
+    /// Região do vídeo só do painel, incluindo a barra de menus acima dele.
+    private func writePanelRegion() {
+        guard let path = ProcessInfo.processInfo.environment["GHS_DEMO_REGION_FILE"],
+              let mainHeight = NSScreen.screens.first?.frame.height,
+              let screen = statusItem.button?.window?.screen else { return }
+        let margin: CGFloat = 130
+        let left = panel.frame.minX + shadowInset - margin
+        let width = panel.frame.width - shadowInset * 2 + margin * 2
+        let top = mainHeight - screen.frame.maxY
+        let bottom = mainHeight - (panel.frame.minY + shadowInset) + 40
+        let region = "\(Int(left)),\(Int(top)),\(Int(width)),\(Int(bottom - top))"
+        try? region.write(toFile: path, atomically: true, encoding: .utf8)
     }
 
     /// Grava a região de gravação (painel + Ajustes) em coordenadas do screencapture.
